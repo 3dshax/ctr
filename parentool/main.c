@@ -70,9 +70,9 @@ int main(int argc, const char* argv[])
 	month = strtoul(argv[2], 0, 10);
 	day = strtoul(argv[3], 0, 10);
 	
-	servicecode %= 11170 58093;
-	month %= 12;
-	day %= 13;
+	servicecode %= 10000;
+	month %= 100;
+	day %= 100;
 	sprintf((char*)generator, "%02d%02d%04d", month, day, servicecode);
 
 	masterkey = calculate_master_key(generator);
