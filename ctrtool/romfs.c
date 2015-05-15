@@ -6,6 +6,7 @@
 #include "types.h"
 #include "romfs.h"
 #include "utils.h"
+#include "filepath.h"
 
 void romfs_init(romfs_context* ctx)
 {
@@ -86,12 +87,14 @@ void romfs_process(romfs_context* ctx, u32 actions)
 		fseek(ctx->file, dirblockoffset, SEEK_SET);
 		fread(ctx->dirblock, 1, dirblocksize, ctx->file);
 	}
+	else perror("ctx->dirblock\n");
 
 	if (ctx->fileblock)
 	{
 		fseek(ctx->file, fileblockoffset, SEEK_SET);
 		fread(ctx->fileblock, 1, fileblocksize, ctx->file);
 	}
+	else perror("ctx->fileblock\n");
 
 	if (actions & InfoFlag)
 		romfs_print(ctx);
@@ -223,8 +226,10 @@ void romfs_visit_dir(romfs_context* ctx, u32 diroffset, u32 depth, u32 actions, 
 	childoffset = getle32(entry->childoffset);
 	fileoffset = getle32(entry->fileoffset);
 
-	if (fileoffset != (~0))
-		romfs_visit_file(ctx, fileoffset, depth+1, actions, &currentpath);
+	while(fileoffset != (~0))
+	{
+		fileoffset=romfs_visit_file(ctx, fileoffset, depth+1, actions, &currentpath);
+	}
 
 	if (childoffset != (~0))
 		romfs_visit_dir(ctx, childoffset, depth+1, actions, &currentpath);
@@ -234,7 +239,7 @@ void romfs_visit_dir(romfs_context* ctx, u32 diroffset, u32 depth, u32 actions, 
 }
 
 
-void romfs_visit_file(romfs_context* ctx, u32 fileoffset, u32 depth, u32 actions, filepath* rootpath)
+u32 romfs_visit_file(romfs_context *ctx, u32 fileoffset, u32 depth, u32 actions, filepath *rootpath)
 {
 	u32 siblingoffset = 0;
 	filepath currentpath;
@@ -242,7 +247,7 @@ void romfs_visit_file(romfs_context* ctx, u32 fileoffset, u32 depth, u32 actions
 
 
 	if (!romfs_fileblock_readentry(ctx, fileoffset, entry))
-		return;
+		return 0;
 
 
 //	fprintf(stdout, "%08X %08X %016llX %016llX %08X ", 
@@ -262,7 +267,7 @@ void romfs_visit_file(romfs_context* ctx, u32 fileoffset, u32 depth, u32 actions
 		else
 		{
 			fprintf(stderr, "Error creating directory in root %s\n", rootpath->pathname);
-			return;
+			return 0;
 		}
 	}
 	else
@@ -279,9 +284,7 @@ void romfs_visit_file(romfs_context* ctx, u32 fileoffset, u32 depth, u32 actions
 	}
 
 	siblingoffset = getle32(entry->siblingoffset);
-
-	if (siblingoffset != (~0))
-		romfs_visit_file(ctx, siblingoffset, depth, actions, rootpath);
+	return siblingoffset;
 }
 
 void romfs_extract_datafile(romfs_context* ctx, u64 offset, u64 size, filepath* path)
